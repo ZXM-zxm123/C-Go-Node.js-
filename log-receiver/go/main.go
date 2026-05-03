@@ -26,14 +26,14 @@ var (
 func main() {
 	configPath := getConfigPath()
 	var err error
-	cfg, err = LoadConfig(configPath)
+	cfg, err := LoadConfig(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		os.Exit(1)
 	}
 
 	redisAddr := fmt.Sprintf("%s:%d", cfg.GoConsumer.RedisHost, cfg.GoConsumer.RedisPort)
-	redisClient = redis.NewClient(&redis.Options{
+	redisClient := redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 	})
 
@@ -45,9 +45,9 @@ func main() {
 
 	createConsumerGroup(ctx)
 
-	logParser = NewLogParser()
-	metrics = NewMetricsManager(time.Duration(cfg.GoConsumer.MetricsInterval) * time.Second)
-	alertManager = NewAlertManager(redisClient)
+	logParser := NewLogParser()
+	metrics := NewMetricsManager(time.Duration(cfg.GoConsumer.MetricsInterval) * time.Second)
+	alertManager := NewAlertManager(redisClient, cfg)
 
 	go consumeStream(ctx)
 	go metrics.Start()

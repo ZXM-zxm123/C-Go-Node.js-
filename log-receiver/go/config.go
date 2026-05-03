@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,6 +15,7 @@ type Config struct {
 	CppReceiver CppReceiverConfig `yaml:"cpp_receiver"`
 	GoConsumer  GoConsumerConfig  `yaml:"go_consumer"`
 	NodeAPI     NodeAPIConfig     `yaml:"node_api"`
+	AlertRules  []AlertRuleConfig `yaml:"alert_rules"`
 }
 
 type CppReceiverConfig struct {
@@ -41,6 +43,18 @@ type NodeAPIConfig struct {
 	GRPCPort  int    `yaml:"grpc_port"`
 	RedisHost string `yaml:"redis_host"`
 	RedisPort int    `yaml:"redis_port"`
+}
+
+type AlertRuleConfig struct {
+	ID              string `yaml:"id"`
+	Name            string `yaml:"name"`
+	Level           string `yaml:"level"`
+	Count           int    `yaml:"count"`
+	WindowSeconds   int    `yaml:"window_seconds"`
+	Consecutive     int    `yaml:"consecutive"`
+	CooldownSeconds int    `yaml:"cooldown_seconds"`
+	WebhookURL      string `yaml:"webhook_url"`
+	Active          bool   `yaml:"active"`
 }
 
 func LoadConfig(path string) (*Config, error) {

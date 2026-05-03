@@ -8,7 +8,20 @@ let alertRules = [
     name: 'High Error Rate',
     level: 'ERROR',
     count: 5,
-    window: 10,
+    windowSeconds: 300,
+    consecutive: 2,
+    cooldownSeconds: 600,
+    webhookUrl: 'http://localhost:3000/webhook/alert',
+    active: true
+  },
+  {
+    id: 'warning_high',
+    name: 'High Warning Rate',
+    level: 'WARNING',
+    count: 10,
+    windowSeconds: 300,
+    consecutive: 3,
+    cooldownSeconds: 900,
     webhookUrl: 'http://localhost:3000/webhook/alert',
     active: true
   }
@@ -41,7 +54,9 @@ router.post('/', (req, res) => {
     name: req.body.name,
     level: req.body.level || 'ERROR',
     count: req.body.count || 5,
-    window: req.body.window || 10,
+    windowSeconds: req.body.windowSeconds || 300,
+    consecutive: req.body.consecutive || 2,
+    cooldownSeconds: req.body.cooldownSeconds || 600,
     webhookUrl: req.body.webhookUrl || 'http://localhost:3000/webhook/alert',
     active: req.body.active !== undefined ? req.body.active : true
   };

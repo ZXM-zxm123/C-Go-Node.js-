@@ -22,9 +22,11 @@ message AlertRule {
     string name = 2;
     string level = 3;
     int32 count = 4;
-    int32 window = 5;
-    string webhook_url = 6;
-    bool active = 7;
+    int32 window_seconds = 5;
+    int32 consecutive = 6;
+    int32 cooldown_seconds = 7;
+    string webhook_url = 8;
+    bool active = 9;
 }
 
 message AlertsResponse {

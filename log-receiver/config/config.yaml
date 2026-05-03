@@ -21,3 +21,23 @@ node_api:
   grpc_port: 50051
   redis_host: "localhost"
   redis_port: 6379
+
+alert_rules:
+  - id: "error_high"
+    name: "High Error Rate"
+    level: "ERROR"
+    count: 5
+    window_seconds: 300
+    consecutive: 2
+    cooldown_seconds: 600
+    webhook_url: "http://localhost:3000/webhook/alert"
+    active: true
+  - id: "warning_high"
+    name: "High Warning Rate"
+    level: "WARNING"
+    count: 10
+    window_seconds: 300
+    consecutive: 3
+    cooldown_seconds: 900
+    webhook_url: "http://localhost:3000/webhook/alert"
+    active: true
