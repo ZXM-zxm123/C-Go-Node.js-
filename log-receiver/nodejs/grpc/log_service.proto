@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package logservice;
+
+message MetricsRequest {}
+
+message MetricsResponse {
+    int64 total_count = 1;
+    map<string, int64> level_counts = 2;
+    map<string, int64> source_counts = 3;
+    double error_rate = 4;
+    double avg_latency = 5;
+    string timestamp = 6;
+}
+
+message AlertsRequest {}
+
+message AlertRule {
+    string id = 1;
+    string name = 2;
+    string level = 3;
+    int32 count = 4;
+    int32 window = 5;
+    string webhook_url = 6;
+    bool active = 7;
+}
+
+message AlertsResponse {
+    repeated AlertRule rules = 1;
+}
+
+service LogService {
+    rpc GetMetrics(MetricsRequest) returns (MetricsResponse);
+    rpc GetAlerts(AlertsRequest) returns (AlertsResponse);
+}
