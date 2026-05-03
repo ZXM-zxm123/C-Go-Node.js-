@@ -1,0 +1,23 @@
+cpp_receiver:
+  udp_port: 514
+  tcp_port: 515
+  queue_size: 100000
+  redis_host: "localhost"
+  redis_port: 6379
+  redis_stream: "log_stream"
+
+go_consumer:
+  redis_host: "localhost"
+  redis_port: 6379
+  redis_stream: "log_stream"
+  consumer_group: "log_consumers"
+  consumer_name: "consumer_1"
+  metrics_interval: 60
+  grpc_port: 50051
+
+node_api:
+  http_port: 3000
+  grpc_host: "localhost"
+  grpc_port: 50051
+  redis_host: "localhost"
+  redis_port: 6379

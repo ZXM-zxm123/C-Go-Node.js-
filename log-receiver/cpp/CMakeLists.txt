@@ -12,6 +12,7 @@ add_executable(log_receiver
     src/log_receiver.cpp
     src/zero_copy_queue.cpp
     src/redis_publisher.cpp
+    src/config.cpp
 )
 
 target_include_directories(log_receiver PRIVATE include)

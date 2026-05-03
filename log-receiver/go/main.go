@@ -1,98 +1,110 @@
 package main
 
 import (
-    "context"
-    "log"
-    "net"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"path/filepath"
+	"time"
 
-    "github.com/go-redis/redis/v8"
-    "google.golang.org/grpc"
+	"github.com/go-redis/redis/v8"
+	"google.golang.org/grpc"
 
-    pb "log_consumer/proto"
-)
-
-const (
-    redisAddr     = "localhost:6379"
-    streamName    = "log_stream"
-    consumerGroup = "log_consumers"
-    consumerName  = "consumer_1"
-    grpcPort      = ":50051"
-    metricsInterval = 60 * time.Second
+	pb "log_consumer/proto"
 )
 
 var (
-    redisClient *redis.Client
-    logParser   *LogParser
-    metrics     *MetricsManager
-    alertManager *AlertManager
+	cfg          *Config
+	redisClient  *redis.Client
+	logParser    *LogParser
+	metrics      *MetricsManager
+	alertManager *AlertManager
 )
 
 func main() {
-    redisClient = redis.NewClient(&redis.Options{
-        Addr: redisAddr,
-    })
+	configPath := getConfigPath()
+	var err error
+	cfg, err = LoadConfig(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		os.Exit(1)
+	}
 
-    ctx := context.Background()
-    _, err := redisClient.Ping(ctx).Result()
-    if err != nil {
-        log.Fatalf("Failed to connect to Redis: %v", err)
-    }
+	redisAddr := fmt.Sprintf("%s:%d", cfg.GoConsumer.RedisHost, cfg.GoConsumer.RedisPort)
+	redisClient = redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
 
-    createConsumerGroup(ctx)
+	ctx := context.Background()
+	_, err = redisClient.Ping(ctx).Result()
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis at %s: %v", redisAddr, err)
+	}
 
-    logParser = NewLogParser()
-    metrics = NewMetricsManager(metricsInterval)
-    alertManager = NewAlertManager(redisClient)
+	createConsumerGroup(ctx)
 
-    go consumeStream(ctx)
-    go metrics.Start()
-    go alertManager.Start()
+	logParser = NewLogParser()
+	metrics = NewMetricsManager(time.Duration(cfg.GoConsumer.MetricsInterval) * time.Second)
+	alertManager = NewAlertManager(redisClient)
 
-    lis, err := net.Listen("tcp", grpcPort)
-    if err != nil {
-        log.Fatalf("Failed to listen: %v", err)
-    }
+	go consumeStream(ctx)
+	go metrics.Start()
+	go alertManager.Start()
 
-    s := grpc.NewServer()
-    pb.RegisterLogServiceServer(s, &server{})
+	grpcPortStr := fmt.Sprintf(":%d", cfg.GoConsumer.GRPCPort)
+	lis, err := net.Listen("tcp", grpcPortStr)
+	if err != nil {
+		log.Fatalf("Failed to listen on %s: %v", grpcPortStr, err)
+	}
 
-    log.Printf("gRPC server listening on %s", grpcPort)
-    if err := s.Serve(lis); err != nil {
-        log.Fatalf("Failed to serve: %v", err)
-    }
+	s := grpc.NewServer()
+	pb.RegisterLogServiceServer(s, &server{})
+
+	log.Printf("gRPC server listening on %s", grpcPortStr)
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
+
+func getConfigPath() string {
+	if path := os.Getenv("CONFIG_PATH"); path != "" {
+		return path
+	}
+	return filepath.Join("..", "config", "config.yaml")
 }
 
 func createConsumerGroup(ctx context.Context) {
-    err := redisClient.XGroupCreateMkStream(ctx, streamName, consumerGroup, "0").Err()
-    if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
-        log.Printf("Failed to create consumer group: %v", err)
-    }
+	err := redisClient.XGroupCreateMkStream(ctx, cfg.GoConsumer.RedisStream, cfg.GoConsumer.ConsumerGroup, "0").Err()
+	if err != nil && err.Error() != "BUSYGROUP Consumer Group name already exists" {
+		log.Printf("Failed to create consumer group: %v", err)
+	}
 }
 
 func consumeStream(ctx context.Context) {
-    for {
-        entries, err := redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
-            Group:    consumerGroup,
-            Consumer: consumerName,
-            Streams:  []string{streamName, ">"},
-            Count:    100,
-            Block:    0,
-        }).Result()
+	for {
+		entries, err := redisClient.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    cfg.GoConsumer.ConsumerGroup,
+			Consumer: cfg.GoConsumer.ConsumerName,
+			Streams:  []string{cfg.GoConsumer.RedisStream, ">"},
+			Count:    100,
+			Block:    0,
+		}).Result()
 
-        if err != nil {
-            log.Printf("Failed to read stream: %v", err)
-            time.Sleep(1 * time.Second)
-            continue
-        }
+		if err != nil {
+			log.Printf("Failed to read stream: %v", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
 
-        for _, stream := range entries {
-            for _, msg := range stream.Messages {
-                processMessage(msg)
-                redisClient.XAck(ctx, streamName, consumerGroup, msg.ID)
-            }
-        }
-    }
+		for _, stream := range entries {
+			for _, msg := range stream.Messages {
+				processMessage(msg)
+				redisClient.XAck(ctx, cfg.GoConsumer.RedisStream, cfg.GoConsumer.ConsumerGroup, msg.ID)
+			}
+		}
+	}
 }
 
 func processMessage(msg redis.XMessage) {

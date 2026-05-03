@@ -2,17 +2,19 @@ const express = require('express');
 const cors = require('cors');
 const redis = require('ioredis');
 
+const { loadConfig } = require('./config');
 const metricsRouter = require('./routes/metrics');
 const alertsRouter = require('./routes/alerts');
 const logsRouter = require('./routes/logs');
 const webhookRouter = require('./routes/webhook');
 
+const config = loadConfig();
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.node_api.http_port;
 
 const redisClient = new redis({
-  host: 'localhost',
-  port: 6379
+    host: config.node_api.redis_host,
+    port: config.node_api.redis_port
 });
 
 app.use(cors());
